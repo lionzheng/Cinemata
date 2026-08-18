@@ -1,0 +1,38 @@
+{
+  "project": "The Last Lantern",
+  "episode": "01",
+  "assets": [
+    {
+      "id": "station-night-bg",
+      "kind": "image",
+      "uri": "public-domain://station-night",
+      "license": "CC0",
+      "source": "public-domain-demo"
+    }
+  ],
+  "scenes": [
+    {
+      "id": "station-night",
+      "location": "old railway station",
+      "characters": ["lin", "old_man"],
+      "shots": [
+        {
+          "id": "shot-001",
+          "type": "wide",
+          "duration": 4,
+          "prompt": "An empty railway platform at blue hour, one warm lantern, cinematic wide shot"
+        },
+        {
+          "id": "shot-002",
+          "type": "close-up",
+          "duration": 3,
+          "prompt": "A traveler holding a worn brass key, shallow depth of field"
+        }
+      ],
+      "dialogue": [
+        {"shot_id": "shot-001", "character": "lin", "text": "我们终于到了。", "duration": 2.5},
+        {"shot_id": "shot-002", "character": "old_man", "text": "门只会为记得它的人打开。", "duration": 2.5}
+      ]
+    }
+  ]
+}
