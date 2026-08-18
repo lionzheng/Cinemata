@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from html import escape
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -118,6 +119,63 @@ def render_storyboard(manifest: dict[str, Any], timeline: dict[str, Any]) -> str
     return "\n".join(lines).rstrip() + "\n"
 
 
+def render_review_html(manifest: dict[str, Any], timeline: dict[str, Any]) -> str:
+    """生成无需构建工具即可打开的浏览器审阅页，便于逐镜头检查内容。"""
+    scene_blocks: list[str] = []
+    for scene_index, scene in enumerate(timeline["scenes"]):
+        source_scene = manifest["scenes"][scene_index]
+        dialogue_by_shot: dict[str, list[str]] = {}
+        for dialogue in source_scene.get("dialogue", []):
+            speaker = escape(str(dialogue.get("character", "旁白")))
+            text = escape(str(dialogue.get("text", "")))
+            dialogue_by_shot.setdefault(dialogue["shot_id"], []).append(f"<p><strong>{speaker}</strong> {text}</p>")
+        shot_cards: list[str] = []
+        for shot in scene["shots"]:
+            prompt = escape(shot["prompt"] or "等待媒体 provider 生成画面")
+            dialogue = "".join(dialogue_by_shot.get(shot["id"], []))
+            shot_cards.append(
+                "<article class=\"shot\">"
+                f"<div class=\"frame\"><span>{escape(shot['type'])}</span></div>"
+                f"<h3>{escape(shot['id'])}</h3>"
+                f"<p class=\"timing\">{shot['start']:.2f}s - {shot['end']:.2f}s</p>"
+                f"<p>{prompt}</p>{dialogue}</article>"
+            )
+        scene_blocks.append(
+            f"<section><h2>场景 {escape(scene['id'])}</h2>"
+            f"<p class=\"meta\">地点：{escape(scene['location'] or '未指定')}　人物：{escape(', '.join(scene['characters']) or '未指定')}</p>"
+            f"<div class=\"shots\">{''.join(shot_cards)}</div></section>"
+        )
+    title = escape(f"{manifest['project']} - Episode {manifest['episode']}")
+    return f"""<!doctype html>
+<html lang=\"zh-CN\">
+<head>
+<meta charset=\"utf-8\">
+<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">
+<title>{title}</title>
+<style>
+:root {{ color-scheme: light; font-family: system-ui, -apple-system, sans-serif; background: #f4f1eb; color: #25231f; }}
+body {{ max-width: 1180px; margin: 0 auto; padding: 32px 20px 60px; }}
+header {{ border-bottom: 2px solid #25231f; margin-bottom: 28px; }}
+h1 {{ margin-bottom: 6px; }}
+.summary, .meta, .timing {{ color: #655f55; }}
+section {{ margin: 28px 0 40px; }}
+.shots {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }}
+.shot {{ background: #fff; border: 1px solid #d8d0c4; padding: 14px; box-shadow: 3px 3px 0 #d8d0c4; }}
+.shot h3 {{ margin: 12px 0 2px; }}
+.shot p {{ line-height: 1.5; }}
+.frame {{ aspect-ratio: 16 / 9; display: grid; place-items: center; background: #27251f; color: #f7f1e8; letter-spacing: .06em; text-transform: uppercase; }}
+.frame span {{ border: 1px solid #aaa092; padding: 5px 8px; font-size: .78rem; }}
+strong {{ color: #8b3a2e; }}
+</style>
+</head>
+<body>
+<header><h1>{title}</h1><p class=\"summary\">Cinemata review draft · 总时长 {timeline['duration']:.2f}s</p></header>
+{''.join(scene_blocks)}
+</body>
+</html>
+"""
+
+
 def build_episode(input_path: Path, output_dir: Path) -> dict[str, Path]:
     """执行第一条端到端流程并写出全部可审阅产物。"""
     manifest = load_manifest(input_path)
@@ -126,11 +184,13 @@ def build_episode(input_path: Path, output_dir: Path) -> dict[str, Path]:
     outputs = {
         "timeline": output_dir / "timeline.json",
         "storyboard": output_dir / "storyboard.md",
+        "review": output_dir / "review.html",
         "subtitles": output_dir / "subtitles.srt",
         "provenance": output_dir / "provenance.json",
     }
     outputs["timeline"].write_text(json.dumps(timeline, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     outputs["storyboard"].write_text(render_storyboard(manifest, timeline), encoding="utf-8")
+    outputs["review"].write_text(render_review_html(manifest, timeline), encoding="utf-8")
     outputs["subtitles"].write_text(render_subtitles(manifest, timeline), encoding="utf-8")
     provenance = {
         "schema_version": "0.1",

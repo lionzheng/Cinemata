@@ -15,6 +15,7 @@ py -3 -m cinemata build examples/episode-01.json --output dist/episode-01
 The command writes:
 
 - `storyboard.md`: a reviewable shot list with dialogue and timing.
+- `review.html`: a browser-ready visual review board for scenes and shots.
 - `subtitles.srt`: subtitles derived from the dialogue timeline.
 - `timeline.json`: normalized scene and shot timing.
 - `provenance.json`: source, license, generation, and pipeline metadata.

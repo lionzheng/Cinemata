@@ -16,8 +16,9 @@ class PipelineTest(unittest.TestCase):
         """示例 manifest 应生成四类可审阅产物。"""
         with tempfile.TemporaryDirectory() as temp_dir:
             outputs = build_episode(ROOT / "examples" / "episode-01.json", Path(temp_dir))
-            self.assertEqual(set(outputs), {"timeline", "storyboard", "subtitles", "provenance"})
+            self.assertEqual(set(outputs), {"timeline", "storyboard", "review", "subtitles", "provenance"})
             self.assertIn("shot-001", outputs["storyboard"].read_text(encoding="utf-8"))
+            self.assertIn("Cinemata review draft", outputs["review"].read_text(encoding="utf-8"))
             self.assertIn("00:00:00,000 --> 00:00:02,500", outputs["subtitles"].read_text(encoding="utf-8"))
             provenance = json.loads(outputs["provenance"].read_text(encoding="utf-8"))
             self.assertEqual(provenance["pipeline"]["name"], "cinemata-core")
