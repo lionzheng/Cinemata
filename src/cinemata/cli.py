@@ -4,6 +4,7 @@ import argparse
 from pathlib import Path
 
 from .pipeline import ManifestError, build_episode
+from .render import RenderError, render_video
 
 
 def main() -> int:
@@ -13,10 +14,16 @@ def main() -> int:
     build = subparsers.add_parser("build", help="compile an episode manifest")
     build.add_argument("manifest", type=Path)
     build.add_argument("--output", type=Path, required=True)
+    render = subparsers.add_parser("render", help="render build artifacts to MP4")
+    render.add_argument("input", type=Path)
+    render.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
     try:
-        outputs = build_episode(args.manifest, args.output)
-    except (OSError, ManifestError, ValueError) as exc:
+        if args.command == "build":
+            outputs = build_episode(args.manifest, args.output)
+        else:
+            outputs = {"video": render_video(args.input, args.output)}
+    except (OSError, ManifestError, RenderError, ValueError) as exc:
         parser.error(str(exc))
     for name, path in outputs.items():
         print(f"{name}: {path}")

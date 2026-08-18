@@ -34,7 +34,8 @@ class MockImageProvider:
     def generate(self, shot: dict[str, Any], output_path: Path) -> dict[str, Any]:
         """把 prompt 渲染为可视化占位帧，不访问外部服务。"""
         prompt = str(shot.get("prompt", "等待媒体 provider 生成画面"))
-        digest = hashlib.sha256(prompt.encode("utf-8")).hexdigest()[:8]
+        raw_digest = hashlib.sha256(prompt.encode("utf-8")).digest()
+        digest = raw_digest.hex()[:8]
         output_path.parent.mkdir(parents=True, exist_ok=True)
         svg = f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" role="img" aria-label="Cinemata mock frame">
 <rect width="1600" height="900" fill="#27251f"/>
@@ -48,12 +49,17 @@ class MockImageProvider:
 </svg>
 """
         output_path.write_text(svg, encoding="utf-8")
+        render_path = output_path.with_suffix(".ppm")
+        red, green, blue = 35 + raw_digest[0] // 3, 32 + raw_digest[1] // 4, 28 + raw_digest[2] // 5
+        pixel = f"{red} {green} {blue}"
+        render_path.write_text(f"P3\n640 360\n255\n" + (pixel + "\n") * (640 * 360), encoding="ascii")
         return {
             "id": str(shot["id"]),
             "kind": "image",
             "uri": output_path.name,
             "license": "Cinemata-generated-mock",
             "source": self.name,
+            "render_uri": render_path.name,
             "provider": {"name": self.name, "version": self.version, "prompt_sha256": hashlib.sha256(prompt.encode("utf-8")).hexdigest()},
         }
 

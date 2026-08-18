@@ -198,6 +198,7 @@ def build_episode(input_path: Path, output_dir: Path, image_provider: ImageProvi
         "review": output_dir / "review.html",
         "subtitles": output_dir / "subtitles.srt",
         "provenance": output_dir / "provenance.json",
+        "manifest": output_dir / "manifest.json",
     }
     generated_assets: list[dict[str, Any]] = []
     generated_asset_urls: dict[str, str] = {}
@@ -219,6 +220,7 @@ def build_episode(input_path: Path, output_dir: Path, image_provider: ImageProvi
             generated_assets.append(audio_asset)
             audio_asset_urls[audio_id] = audio_asset["uri"]
     outputs["timeline"].write_text(json.dumps(timeline, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    outputs["manifest"].write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     outputs["storyboard"].write_text(render_storyboard(manifest, timeline), encoding="utf-8")
     outputs["review"].write_text(render_review_html(manifest, timeline, generated_asset_urls, audio_asset_urls), encoding="utf-8")
     outputs["subtitles"].write_text(render_subtitles(manifest, timeline), encoding="utf-8")

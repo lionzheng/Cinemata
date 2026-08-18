@@ -16,12 +16,13 @@ class PipelineTest(unittest.TestCase):
         """示例 manifest 应生成四类可审阅产物。"""
         with tempfile.TemporaryDirectory() as temp_dir:
             outputs = build_episode(ROOT / "examples" / "episode-01.json", Path(temp_dir))
-            self.assertEqual(set(outputs), {"timeline", "storyboard", "review", "subtitles", "provenance"})
+            self.assertEqual(set(outputs), {"timeline", "storyboard", "review", "subtitles", "provenance", "manifest"})
             self.assertIn("shot-001", outputs["storyboard"].read_text(encoding="utf-8"))
             review = outputs["review"].read_text(encoding="utf-8")
             self.assertIn("Cinemata review draft", review)
             self.assertIn("assets/shot-001.svg", review)
             self.assertTrue((Path(temp_dir) / "assets" / "shot-001.svg").exists())
+            self.assertTrue((Path(temp_dir) / "assets" / "shot-001.ppm").exists())
             self.assertTrue((Path(temp_dir) / "assets" / "dialogue-01-01.wav").exists())
             self.assertIn("dialogue-01-01.wav", review)
             self.assertIn("00:00:00,000 --> 00:00:02,500", outputs["subtitles"].read_text(encoding="utf-8"))

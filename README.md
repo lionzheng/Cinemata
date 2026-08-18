@@ -12,6 +12,12 @@ Requirements: Python 3.11+.
 py -3 -m cinemata build examples/episode-01.json --output dist/episode-01
 ```
 
+Render the generated mock frames and dialogue into an MP4 (requires FFmpeg):
+
+```powershell
+py -3 -m cinemata render dist/episode-01 --output dist/episode-01.mp4
+```
+
 The command writes:
 
 - `storyboard.md`: a reviewable shot list with dialogue and timing.
@@ -21,6 +27,7 @@ The command writes:
 - `subtitles.srt`: subtitles derived from the dialogue timeline.
 - `timeline.json`: normalized scene and shot timing.
 - `provenance.json`: source, license, generation, and pipeline metadata.
+- `episode-01.mp4`: optional rendered video with mock frames and dialogue audio.
 
 Run the tests with:
 
