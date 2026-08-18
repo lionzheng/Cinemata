@@ -11,6 +11,8 @@ Cinemata 将内容数据和外部生成服务分开。provider 只接收规范�
 - 记录 provider 名称、版本和 prompt SHA-256
 - 可在 CI 和本地审阅流程中使用
 
+`VoiceProvider.generate(text, duration, output_path, metadata)` 接收对白文本和目标时长。内置 `MockVoiceProvider` 生成单声道 WAV 提示音，用于验证音频文件、时长和审阅页链接；它不会把对白发送到外部服务。
+
 ## 接入真实 provider 的约束
 
 实现真实图片、配音、音乐或视频 provider 时：

@@ -17,6 +17,7 @@ The command writes:
 - `storyboard.md`: a reviewable shot list with dialogue and timing.
 - `review.html`: a browser-ready visual review board for scenes and shots.
 - `assets/*.svg`: deterministic mock frames generated through the provider interface.
+- `assets/*.wav`: deterministic mock voice clips aligned to dialogue duration.
 - `subtitles.srt`: subtitles derived from the dialogue timeline.
 - `timeline.json`: normalized scene and shot timing.
 - `provenance.json`: source, license, generation, and pipeline metadata.

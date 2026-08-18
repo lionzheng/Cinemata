@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 import hashlib
+import math
+import struct
+import wave
 from html import escape
 from pathlib import Path
 from typing import Any, Protocol
@@ -13,6 +16,13 @@ class ImageProvider(Protocol):
 
     def generate(self, shot: dict[str, Any], output_path: Path) -> dict[str, Any]:
         """生成镜头图片并返回 provenance 记录。"""
+
+
+class VoiceProvider(Protocol):
+    """语音 provider 必须为一条对白生成可引用的音频资产。"""
+
+    def generate(self, text: str, duration: float, output_path: Path, metadata: dict[str, Any]) -> dict[str, Any]:
+        """生成对白音频并返回 provenance 记录。"""
 
 
 class MockImageProvider:
@@ -45,4 +55,37 @@ class MockImageProvider:
             "license": "Cinemata-generated-mock",
             "source": self.name,
             "provider": {"name": self.name, "version": self.version, "prompt_sha256": hashlib.sha256(prompt.encode("utf-8")).hexdigest()},
+        }
+
+
+class MockVoiceProvider:
+    """生成确定性的提示音 WAV，占位验证音频时间轴和导出流程。"""
+
+    name = "mock-voice"
+    version = "0.1.0"
+    sample_rate = 16_000
+
+    def generate(self, text: str, duration: float, output_path: Path, metadata: dict[str, Any]) -> dict[str, Any]:
+        """根据对白哈希生成短音调，不访问外部服务或上传文本。"""
+        digest = hashlib.sha256(text.encode("utf-8")).digest()
+        frequency = 220 + digest[0]
+        frame_count = max(1, round(duration * self.sample_rate))
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        with wave.open(str(output_path), "wb") as audio:
+            audio.setnchannels(1)
+            audio.setsampwidth(2)
+            audio.setframerate(self.sample_rate)
+            frames = bytearray()
+            for index in range(frame_count):
+                envelope = min(1.0, index / max(1, self.sample_rate * 0.05), (frame_count - index) / max(1, self.sample_rate * 0.05))
+                value = int(9000 * envelope * math.sin(2 * math.pi * frequency * index / self.sample_rate))
+                frames.extend(struct.pack("<h", value))
+            audio.writeframes(frames)
+        return {
+            "id": str(metadata["id"]),
+            "kind": "audio",
+            "uri": output_path.name,
+            "license": "Cinemata-generated-mock",
+            "source": self.name,
+            "provider": {"name": self.name, "version": self.version, "text_sha256": hashlib.sha256(text.encode("utf-8")).hexdigest()},
         }

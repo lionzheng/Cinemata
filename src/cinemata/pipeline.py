@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from .providers import ImageProvider, MockImageProvider
+from .providers import ImageProvider, MockImageProvider, MockVoiceProvider, VoiceProvider
 
 
 class ManifestError(ValueError):
@@ -121,17 +121,20 @@ def render_storyboard(manifest: dict[str, Any], timeline: dict[str, Any]) -> str
     return "\n".join(lines).rstrip() + "\n"
 
 
-def render_review_html(manifest: dict[str, Any], timeline: dict[str, Any], generated_assets: dict[str, str] | None = None) -> str:
+def render_review_html(manifest: dict[str, Any], timeline: dict[str, Any], generated_assets: dict[str, str] | None = None, audio_assets: dict[str, str] | None = None) -> str:
     """生成无需构建工具即可打开的浏览器审阅页，便于逐镜头检查内容。"""
     generated_assets = generated_assets or {}
+    audio_assets = audio_assets or {}
     scene_blocks: list[str] = []
     for scene_index, scene in enumerate(timeline["scenes"]):
         source_scene = manifest["scenes"][scene_index]
         dialogue_by_shot: dict[str, list[str]] = {}
-        for dialogue in source_scene.get("dialogue", []):
+        for dialogue_index, dialogue in enumerate(source_scene.get("dialogue", []), start=1):
             speaker = escape(str(dialogue.get("character", "旁白")))
             text = escape(str(dialogue.get("text", "")))
-            dialogue_by_shot.setdefault(dialogue["shot_id"], []).append(f"<p><strong>{speaker}</strong> {text}</p>")
+            audio_id = f"dialogue-{scene_index + 1:02}-{dialogue_index:02}"
+            audio = f"<audio controls preload=\"none\" src=\"{escape(audio_assets[audio_id])}\"></audio>" if audio_id in audio_assets else ""
+            dialogue_by_shot.setdefault(dialogue["shot_id"], []).append(f"<p><strong>{speaker}</strong> {text}<br>{audio}</p>")
         shot_cards: list[str] = []
         for shot in scene["shots"]:
             prompt = escape(shot["prompt"] or "等待媒体 provider 生成画面")
@@ -169,6 +172,7 @@ section {{ margin: 28px 0 40px; }}
 .shot p {{ line-height: 1.5; }}
 .frame {{ aspect-ratio: 16 / 9; display: grid; place-items: center; background: #27251f; color: #f7f1e8; letter-spacing: .06em; text-transform: uppercase; }}
 .frame img {{ width: 100%; height: 100%; object-fit: cover; display: block; }}
+.shot audio {{ width: 100%; margin-top: 4px; }}
 .frame span {{ border: 1px solid #aaa092; padding: 5px 8px; font-size: .78rem; }}
 strong {{ color: #8b3a2e; }}
 </style>
@@ -186,6 +190,7 @@ def build_episode(input_path: Path, output_dir: Path, image_provider: ImageProvi
     manifest = load_manifest(input_path)
     timeline = normalize_timeline(manifest)
     image_provider = image_provider or MockImageProvider()
+    voice_provider: VoiceProvider = MockVoiceProvider()
     output_dir.mkdir(parents=True, exist_ok=True)
     outputs = {
         "timeline": output_dir / "timeline.json",
@@ -203,9 +208,19 @@ def build_episode(input_path: Path, output_dir: Path, image_provider: ImageProvi
             generated_asset["uri"] = f"assets/{asset_path.name}"
             generated_assets.append(generated_asset)
             generated_asset_urls[shot["id"]] = generated_asset["uri"]
+    audio_asset_urls: dict[str, str] = {}
+    for scene_index, scene in enumerate(manifest["scenes"], start=1):
+        for dialogue_index, dialogue in enumerate(scene.get("dialogue", []), start=1):
+            audio_id = f"dialogue-{scene_index:02}-{dialogue_index:02}"
+            audio_path = output_dir / "assets" / f"{audio_id}.wav"
+            duration = _duration(dialogue.get("duration", 2), f"对白 {audio_id}.duration")
+            audio_asset = voice_provider.generate(str(dialogue.get("text", "")), duration, audio_path, {"id": audio_id})
+            audio_asset["uri"] = f"assets/{audio_path.name}"
+            generated_assets.append(audio_asset)
+            audio_asset_urls[audio_id] = audio_asset["uri"]
     outputs["timeline"].write_text(json.dumps(timeline, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     outputs["storyboard"].write_text(render_storyboard(manifest, timeline), encoding="utf-8")
-    outputs["review"].write_text(render_review_html(manifest, timeline, generated_asset_urls), encoding="utf-8")
+    outputs["review"].write_text(render_review_html(manifest, timeline, generated_asset_urls, audio_asset_urls), encoding="utf-8")
     outputs["subtitles"].write_text(render_subtitles(manifest, timeline), encoding="utf-8")
     provenance = {
         "schema_version": "0.1",
