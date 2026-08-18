@@ -16,6 +16,7 @@ The command writes:
 
 - `storyboard.md`: a reviewable shot list with dialogue and timing.
 - `review.html`: a browser-ready visual review board for scenes and shots.
+- `assets/*.svg`: deterministic mock frames generated through the provider interface.
 - `subtitles.srt`: subtitles derived from the dialogue timeline.
 - `timeline.json`: normalized scene and shot timing.
 - `provenance.json`: source, license, generation, and pipeline metadata.
@@ -39,6 +40,8 @@ See [docs/charter.md](docs/charter.md) for the project charter and [docs/data-mo
 ## Status
 
 The repository currently contains the manifest schema and a deterministic storyboard-to-subtitles pipeline. Media-provider adapters and video rendering are planned after the core format stabilizes.
+
+The default image provider is `MockImageProvider`: it creates local SVG frames without network access, so the full workflow remains reproducible in CI. Real image, voice, music, and video providers can implement the interfaces in `src/cinemata/providers.py` without changing the episode manifest.
 
 ## License
 

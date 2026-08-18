@@ -37,9 +37,9 @@ Cinemata 为剧集、短片、有声书、教育内容和互动叙事提供一�
 
 完成 episode manifest、时间轴、分镜、SRT 和 provenance 生成。
 
-### 0.2 媒体适配器
+### 0.2 媒体适配器（进行中）
 
-增加图片、TTS、音乐和视频 provider 接口，并提供本地 mock provider。
+已完成图片 provider 边界和本地 mock provider；下一步增加 TTS、音乐和视频接口，并提供对应的离线 mock provider。
 
 ### 0.3 可恢复生产
 

@@ -8,6 +8,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from .providers import ImageProvider, MockImageProvider
+
 
 class ManifestError(ValueError):
     """Raised when an episode manifest violates the public data contract."""
@@ -119,8 +121,9 @@ def render_storyboard(manifest: dict[str, Any], timeline: dict[str, Any]) -> str
     return "\n".join(lines).rstrip() + "\n"
 
 
-def render_review_html(manifest: dict[str, Any], timeline: dict[str, Any]) -> str:
+def render_review_html(manifest: dict[str, Any], timeline: dict[str, Any], generated_assets: dict[str, str] | None = None) -> str:
     """生成无需构建工具即可打开的浏览器审阅页，便于逐镜头检查内容。"""
+    generated_assets = generated_assets or {}
     scene_blocks: list[str] = []
     for scene_index, scene in enumerate(timeline["scenes"]):
         source_scene = manifest["scenes"][scene_index]
@@ -133,9 +136,10 @@ def render_review_html(manifest: dict[str, Any], timeline: dict[str, Any]) -> st
         for shot in scene["shots"]:
             prompt = escape(shot["prompt"] or "等待媒体 provider 生成画面")
             dialogue = "".join(dialogue_by_shot.get(shot["id"], []))
+            frame = f"<img src=\"{escape(generated_assets[shot['id']])}\" alt=\"{escape(shot['id'])} mock frame\">" if shot["id"] in generated_assets else f"<span>{escape(shot['type'])}</span>"
             shot_cards.append(
                 "<article class=\"shot\">"
-                f"<div class=\"frame\"><span>{escape(shot['type'])}</span></div>"
+                f"<div class=\"frame\">{frame}</div>"
                 f"<h3>{escape(shot['id'])}</h3>"
                 f"<p class=\"timing\">{shot['start']:.2f}s - {shot['end']:.2f}s</p>"
                 f"<p>{prompt}</p>{dialogue}</article>"
@@ -164,6 +168,7 @@ section {{ margin: 28px 0 40px; }}
 .shot h3 {{ margin: 12px 0 2px; }}
 .shot p {{ line-height: 1.5; }}
 .frame {{ aspect-ratio: 16 / 9; display: grid; place-items: center; background: #27251f; color: #f7f1e8; letter-spacing: .06em; text-transform: uppercase; }}
+.frame img {{ width: 100%; height: 100%; object-fit: cover; display: block; }}
 .frame span {{ border: 1px solid #aaa092; padding: 5px 8px; font-size: .78rem; }}
 strong {{ color: #8b3a2e; }}
 </style>
@@ -176,10 +181,11 @@ strong {{ color: #8b3a2e; }}
 """
 
 
-def build_episode(input_path: Path, output_dir: Path) -> dict[str, Path]:
+def build_episode(input_path: Path, output_dir: Path, image_provider: ImageProvider | None = None) -> dict[str, Path]:
     """执行第一条端到端流程并写出全部可审阅产物。"""
     manifest = load_manifest(input_path)
     timeline = normalize_timeline(manifest)
+    image_provider = image_provider or MockImageProvider()
     output_dir.mkdir(parents=True, exist_ok=True)
     outputs = {
         "timeline": output_dir / "timeline.json",
@@ -188,9 +194,18 @@ def build_episode(input_path: Path, output_dir: Path) -> dict[str, Path]:
         "subtitles": output_dir / "subtitles.srt",
         "provenance": output_dir / "provenance.json",
     }
+    generated_assets: list[dict[str, Any]] = []
+    generated_asset_urls: dict[str, str] = {}
+    for scene in timeline["scenes"]:
+        for shot in scene["shots"]:
+            asset_path = output_dir / "assets" / f"{shot['id']}.svg"
+            generated_asset = image_provider.generate(shot, asset_path)
+            generated_asset["uri"] = f"assets/{asset_path.name}"
+            generated_assets.append(generated_asset)
+            generated_asset_urls[shot["id"]] = generated_asset["uri"]
     outputs["timeline"].write_text(json.dumps(timeline, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     outputs["storyboard"].write_text(render_storyboard(manifest, timeline), encoding="utf-8")
-    outputs["review"].write_text(render_review_html(manifest, timeline), encoding="utf-8")
+    outputs["review"].write_text(render_review_html(manifest, timeline, generated_asset_urls), encoding="utf-8")
     outputs["subtitles"].write_text(render_subtitles(manifest, timeline), encoding="utf-8")
     provenance = {
         "schema_version": "0.1",
@@ -198,7 +213,7 @@ def build_episode(input_path: Path, output_dir: Path) -> dict[str, Path]:
         "episode": manifest["episode"],
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "pipeline": {"name": "cinemata-core", "version": "0.1.0"},
-        "assets": manifest.get("assets", []),
+        "assets": manifest.get("assets", []) + generated_assets,
         "inputs": [{"path": str(input_path), "kind": "episode-manifest"}],
     }
     outputs["provenance"].write_text(json.dumps(provenance, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")

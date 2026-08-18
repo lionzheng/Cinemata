@@ -18,10 +18,14 @@ class PipelineTest(unittest.TestCase):
             outputs = build_episode(ROOT / "examples" / "episode-01.json", Path(temp_dir))
             self.assertEqual(set(outputs), {"timeline", "storyboard", "review", "subtitles", "provenance"})
             self.assertIn("shot-001", outputs["storyboard"].read_text(encoding="utf-8"))
-            self.assertIn("Cinemata review draft", outputs["review"].read_text(encoding="utf-8"))
+            review = outputs["review"].read_text(encoding="utf-8")
+            self.assertIn("Cinemata review draft", review)
+            self.assertIn("assets/shot-001.svg", review)
+            self.assertTrue((Path(temp_dir) / "assets" / "shot-001.svg").exists())
             self.assertIn("00:00:00,000 --> 00:00:02,500", outputs["subtitles"].read_text(encoding="utf-8"))
             provenance = json.loads(outputs["provenance"].read_text(encoding="utf-8"))
             self.assertEqual(provenance["pipeline"]["name"], "cinemata-core")
+            self.assertEqual(len(provenance["assets"]), 3)
 
     def test_dialogue_must_reference_existing_shot(self):
         """对白引用未知镜头时必须阻止生成错误字幕。"""
