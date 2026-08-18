@@ -69,7 +69,14 @@ def render_video(output_dir: Path, output_path: Path) -> Path:
     else:
         args.extend(["-f", "lavfi", "-t", str(timeline["duration"]), "-i", "anullsrc=channel_layout=mono:sample_rate=16000"])
         audio_map = f"{audio_start_index}:a"
-    args.extend(["-filter_complex", ";".join(filters), "-map", "[vout]", "-map", audio_map, "-t", str(timeline["duration"]), "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac", "-shortest", str(output_path)])
+    subtitle_path = output_dir / "subtitles.srt"
+    subtitle_input_index = audio_start_index + max(1, len(dialogue_files))
+    if subtitle_path.exists():
+        args.extend(["-i", str(subtitle_path)])
+    args.extend(["-filter_complex", ";".join(filters), "-map", "[vout]", "-map", audio_map, "-t", str(timeline["duration"]), "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac"])
+    if subtitle_path.exists():
+        args.extend(["-map", f"{subtitle_input_index}:s:0", "-c:s", "mov_text", "-metadata:s:s:0", "language=chi"])
+    args.extend([str(output_path)])
     output_path.parent.mkdir(parents=True, exist_ok=True)
     completed = subprocess.run(args, capture_output=True, text=True, check=False)
     if completed.returncode != 0:

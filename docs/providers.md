@@ -27,4 +27,4 @@ Cinemata 将内容数据和外部生成服务分开。provider 只接收规范�
 
 ## 渲染
 
-`cinemata render` 使用本地 FFmpeg 合并镜头和对白音频。字幕目前作为独立的 `subtitles.srt` 输出，避免将字体和平台相关的字幕滤镜配置耦合到核心渲染器。
+`cinemata render` 使用本地 FFmpeg 合并镜头、对白音频和软字幕轨道。字幕同时保留为独立的 `subtitles.srt`，避免将字体和平台相关的烧录滤镜配置耦合到核心渲染器。

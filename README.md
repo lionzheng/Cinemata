@@ -27,7 +27,7 @@ The command writes:
 - `subtitles.srt`: subtitles derived from the dialogue timeline.
 - `timeline.json`: normalized scene and shot timing.
 - `provenance.json`: source, license, generation, and pipeline metadata.
-- `episode-01.mp4`: optional rendered video with mock frames and dialogue audio.
+- `episode-01.mp4`: optional rendered video with mock frames, dialogue audio, and a switchable subtitle track.
 
 Run the tests with:
 
