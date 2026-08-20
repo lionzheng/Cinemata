@@ -12,6 +12,13 @@ Requirements: Python 3.11+.
 py -3 -m cinemata build examples/episode-01.json --output dist/episode-01
 ```
 
+默认使用离线 mock 图片 provider。配置 `OPENAI_API_KEY` 后，可以切换到真实图片生成：
+
+```powershell
+$env:OPENAI_API_KEY = "..."
+py -3 -m cinemata build examples/episode-01.json --output dist/episode-01-openai --image-provider openai
+```
+
 Render the generated mock frames and dialogue into an MP4 (requires FFmpeg):
 
 ```powershell

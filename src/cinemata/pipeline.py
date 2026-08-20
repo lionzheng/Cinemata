@@ -204,7 +204,8 @@ def build_episode(input_path: Path, output_dir: Path, image_provider: ImageProvi
     generated_asset_urls: dict[str, str] = {}
     for scene in timeline["scenes"]:
         for shot in scene["shots"]:
-            asset_path = output_dir / "assets" / f"{shot['id']}.svg"
+            extension = getattr(image_provider, "asset_extension", "svg")
+            asset_path = output_dir / "assets" / f"{shot['id']}.{extension}"
             generated_asset = image_provider.generate(shot, asset_path)
             generated_asset["uri"] = f"assets/{asset_path.name}"
             generated_assets.append(generated_asset)

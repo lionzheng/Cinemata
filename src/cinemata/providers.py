@@ -3,8 +3,13 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import math
+import os
+import base64
 import struct
+import urllib.error
+import urllib.request
 import wave
 from html import escape
 from pathlib import Path
@@ -25,11 +30,16 @@ class VoiceProvider(Protocol):
         """生成对白音频并返回 provenance 记录。"""
 
 
+class ProviderError(RuntimeError):
+    """媒体 provider 无法完成生成或返回了无效响应。"""
+
+
 class MockImageProvider:
     """生成确定性的 SVG 占位帧，用于本地开发、审阅和 CI。"""
 
     name = "mock-image"
     version = "0.1.0"
+    asset_extension = "svg"
 
     def generate(self, shot: dict[str, Any], output_path: Path) -> dict[str, Any]:
         """把 prompt 渲染为可视化占位帧，不访问外部服务。"""
@@ -94,4 +104,53 @@ class MockVoiceProvider:
             "license": "Cinemata-generated-mock",
             "source": self.name,
             "provider": {"name": self.name, "version": self.version, "text_sha256": hashlib.sha256(text.encode("utf-8")).hexdigest()},
+        }
+
+
+class OpenAIImageProvider:
+    """调用 OpenAI Images API 生成 PNG；API key 只从环境变量读取。"""
+
+    name = "openai-image"
+    version = "0.1.0"
+    asset_extension = "png"
+    endpoint = "https://api.openai.com/v1/images/generations"
+
+    def __init__(self, api_key: str | None = None, model: str = "gpt-image-1") -> None:
+        """初始化 provider，避免把密钥写入 manifest 或命令行历史。"""
+        self.api_key = api_key or os.environ.get("OPENAI_API_KEY")
+        self.model = model
+        if not self.api_key:
+            raise ValueError("使用 openai provider 前请设置 OPENAI_API_KEY")
+
+    def generate(self, shot: dict[str, Any], output_path: Path) -> dict[str, Any]:
+        """提交镜头 prompt，下载返回的图片并记录请求摘要。"""
+        prompt = str(shot.get("prompt", ""))
+        if not prompt.strip():
+            raise ValueError(f"镜头 {shot.get('id', 'unknown')} 的 prompt 不能为空")
+        payload = json.dumps({"model": self.model, "prompt": prompt, "size": "1536x1024", "n": 1}).encode("utf-8")
+        request = urllib.request.Request(self.endpoint, data=payload, headers={"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"}, method="POST")
+        try:
+            with urllib.request.urlopen(request, timeout=120) as response:
+                result = json.loads(response.read().decode("utf-8"))
+        except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError) as exc:
+            raise ProviderError(f"OpenAI 图片生成请求失败: {exc}") from exc
+        data = result.get("data", [])
+        if not data or not isinstance(data[0], dict):
+            raise ProviderError("OpenAI 图片生成响应缺少 data[0]")
+        item = data[0]
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        if item.get("b64_json"):
+            output_path.write_bytes(base64.b64decode(item["b64_json"]))
+        elif item.get("url"):
+            try:
+                with urllib.request.urlopen(item["url"], timeout=120) as image_response:
+                    output_path.write_bytes(image_response.read())
+            except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError) as exc:
+                raise ProviderError(f"OpenAI 图片下载失败: {exc}") from exc
+        else:
+            raise ProviderError("OpenAI 图片生成响应缺少 url 或 b64_json")
+        return {
+            "id": str(shot["id"]), "kind": "image", "uri": output_path.name,
+            "license": "provider-dependent", "source": self.name,
+            "provider": {"name": self.name, "version": self.version, "model": self.model, "prompt_sha256": hashlib.sha256(prompt.encode("utf-8")).hexdigest()},
         }

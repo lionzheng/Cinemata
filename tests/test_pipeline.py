@@ -2,8 +2,10 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from cinemata.pipeline import ManifestError, build_episode, load_manifest, normalize_timeline
+from cinemata.providers import OpenAIImageProvider
 
 
 ROOT = Path(__file__).parents[1]
@@ -39,6 +41,11 @@ class PipelineTest(unittest.TestCase):
 
         with self.assertRaises(ManifestError):
             render_subtitles(manifest, timeline)
+
+    def test_openai_provider_requires_environment_key(self):
+        """真实 provider 未配置密钥时应在启动阶段给出明确错误。"""
+        with patch.dict("os.environ", {}, clear=True), self.assertRaises(ValueError):
+            OpenAIImageProvider()
 
 
 if __name__ == "__main__":

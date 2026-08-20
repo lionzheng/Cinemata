@@ -43,7 +43,9 @@ def render_video(output_dir: Path, output_path: Path) -> Path:
     args = [ffmpeg, "-y", "-hide_banner", "-loglevel", "error"]
     for shot in shots:
         ppm_path = output_dir / "assets" / f"{shot['id']}.ppm"
-        frame_path = ppm_path if ppm_path.exists() else output_dir / "assets" / f"{shot['id']}.svg"
+        svg_path = output_dir / "assets" / f"{shot['id']}.svg"
+        png_path = output_dir / "assets" / f"{shot['id']}.png"
+        frame_path = ppm_path if ppm_path.exists() else (png_path if png_path.exists() else svg_path)
         args.extend(["-loop", "1", "-t", str(shot["duration"]), "-i", str(frame_path)])
     dialogue_files = _dialogue_starts(manifest, timeline)
     for filename, _ in dialogue_files:

@@ -11,6 +11,18 @@ Cinemata 将内容数据和外部生成服务分开。provider 只接收规范�
 - 记录 provider 名称、版本和 prompt SHA-256
 - 可在 CI 和本地审阅流程中使用
 
+`OpenAIImageProvider` 是可选的真实图片适配器：
+
+- 从 `OPENAI_API_KEY` 环境变量读取密钥，不写入 manifest
+- 默认使用 `gpt-image-1`，可通过 CLI 覆盖模型
+- 支持 Images API 返回的 `b64_json` 或临时 `url`
+- 生成 PNG，并将模型和 prompt 哈希写入 provenance
+
+```powershell
+$env:OPENAI_API_KEY = "..."
+py -3 -m cinemata build examples/episode-01.json --output dist/episode-01-openai --image-provider openai
+```
+
 `VoiceProvider.generate(text, duration, output_path, metadata)` 接收对白文本和目标时长。内置 `MockVoiceProvider` 生成单声道 WAV 提示音，用于验证音频文件、时长和审阅页链接；它不会把对白发送到外部服务。
 
 ## 接入真实 provider 的约束
